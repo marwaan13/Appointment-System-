@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,29 +16,123 @@ enum roles {
   PATIENT
 }
 
+// Users table
 model users {
   id        Int      @id @default(autoincrement())
   firstname String
   lastname  String
   email     String   @unique
   password  String
+  role      roles    @default(PATIENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  role      roles    @default(PATIENT)
 
   // Relations
-  patient   Patient? @relation("UserToPatient")
+  patient Patient? @relation("UserToPatient")
+  doctor  Doctor?  @relation("UserToDoctor")
 }
 
+// Patient table
 model Patient {
   id             Int             @id @default(autoincrement())
   user           users?          @relation("UserToPatient", fields: [userId], references: [id])
   userId         Int?            @unique
+  name           String
   dateOfBirth    DateTime
   gender         String
   phone          String
   address        String?
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+  reviews        Review[]
   isDeleted      Boolean         @default(false)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+}
+
+// Doctor table
+model Doctor {
+  id             Int           @id @default(autoincrement())
+  user           users?        @relation("UserToDoctor", fields: [userId], references: [id])
+  userId         Int?          @unique
+  name           String
+  phone          String
+  experience     Int // in years
+  specialization String
+  availability   String // e.g., "SUN-TUE"
+  timeAvailable  String // e.g., "4-9"
+  hospital       Hospital?     @relation(fields: [hospitalId], references: [id])
+  hospitalId     Int?
+  appointments   Appointment[]
+  reviews        Review[]
+  isDeleted      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// Hospital table
+model Hospital {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String
+  status    String // active, inactive
+  services  String? // e.g., "X-Ray, Surgery"
+  doctors   Doctor[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Appointment table
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  patientId Int
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  doctorId  Int
+  date      DateTime
+  time      String
+  status    String
+  payment   Payment? @relation("AppointmentToPayment")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([doctorId, date, time])
+}
+
+
+model Payment {
+  id            Int         @id @default(autoincrement())
+  appointment   Appointment @relation("AppointmentToPayment", fields: [appointmentId], references: [id])
+  appointmentId Int         @unique
+  amount        Float
+  method        String
+  status        String
+  paidAt        DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Medical Record
+model MedicalRecord {
+  id          Int      @id @default(autoincrement())
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  patientId   Int
+  title       String
+  description String
+  recordDate  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Review model
+model Review {
+  id        Int      @id @default(autoincrement())
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  patientId Int
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  doctorId  Int
+  rating    Int // 1–5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
